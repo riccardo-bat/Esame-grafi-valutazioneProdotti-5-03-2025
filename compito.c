@@ -5,11 +5,13 @@
 #include "tipo.h"
 
 //prototipi 
+long int int_input(char* msg, int minimum_value, int max_value);
 char* string_input(char* msg, int max_length);
 tipo_inf* creaNodi(int* n);
 void load_graph_from_file(graph* grafo_valutazioni, tipo_inf* ArrayNodes, int dim);
 void stampa(graph* grafo_valutazioni, tipo_inf* arrayNodes);
 float media_utente(char* account, graph g, tipo_inf* arrayNodes, int dim);
+float media_prod(char* prod, graph g, tipo_inf* arrayNodes, int dim);
 
 int main(){
     int dim = 0;
@@ -27,11 +29,35 @@ int main(){
     printf("\nValutazione media di %s: %f", account, media_utente(account, grafo_valutazioni, arrayNodes, dim));
 
 
+    //punto 3
+    printf("\n-------------");
+    int id_prod = (int) int_input("\nInserire id prodotto: ", 1, dim);
+    printf("\nLa media delle valutazioni del prodotto e' %f", media_prod(arrayNodes[id_prod-1].descrizione, grafo_valutazioni, arrayNodes, dim));
+
     //libero la memoria
     free(arrayNodes);
 
     printf("\n\n");
     return 0;
+}
+
+long int int_input(char* msg, int minimum_value, int max_value){
+    long int input;
+    char buffer[100];
+
+    printf("%s", msg);
+    while(fgets(buffer, sizeof(buffer), stdin) == NULL) {
+        printf("\nErrore nella lettura dell'input. Riprova: ");
+    }
+
+    char *endptr;
+    input = strtol(buffer, &endptr, 10);
+    if (endptr == buffer || *endptr != '\n' || input < minimum_value || input > max_value) {
+        printf("\nInput non valido\n.");
+        return int_input(msg, minimum_value, max_value);
+    }
+
+    return input;
 }
 
 char* string_input(char* msg, int max_length){
@@ -194,6 +220,41 @@ float media_utente(char* account, graph g, tipo_inf* arrayNodes, int dim){
     return somma / (float) totValutazioni;
 }
 
+/**
+ * @brief Funzione che calcola la valutazione media del prodotto
+ * 
+ */
+float media_prod(char* prod, graph g, tipo_inf* arrayNodes, int dim){
+    //scorrere tutte le liste di adiacenza per scoprire la valutazione del prodotto
+    int id_prodotto = trovaUtenteProdotto(arrayNodes, dim, prod);
+    if(id_prodotto == -1) {printf("\nDATI NON VALIDI"); exit(EXIT_FAILURE);}
 
+    float tot_valutazioni = 0.0F;
+    int n_valutazioni = 0;
 
+    for(int i=0; i<get_dim(g); i++){
+        //di ogni nodo UTENTE prendo la sua lista di adiacenza
+        int index = i+1;
+        if(arrayNodes[i].tipo == 'U'){
+            adj_list cursor = get_adjlist(g, index);
+            while(cursor != NULL){
+                //se l'utente index ha recensito il prodotto prod, sommo la recensione alla valutazione totale
+                if(compare(arrayNodes[cursor->node], arrayNodes[id_prodotto]) == 0){
+                    tot_valutazioni += cursor->weight;
+                    n_valutazioni++;
+                }
+
+                //else --> non considero altri prodotti
+                cursor = cursor->next;
+            }
+
+        } 
+
+        //else --> non faccio, esistono solo gli archi U->P
+
+    }
+
+    return tot_valutazioni/(float) n_valutazioni;
+
+}
 
