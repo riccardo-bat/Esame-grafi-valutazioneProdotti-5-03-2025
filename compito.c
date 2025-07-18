@@ -5,9 +5,11 @@
 #include "tipo.h"
 
 //prototipi 
+char* string_input(char* msg, int max_length);
 tipo_inf* creaNodi(int* n);
 void load_graph_from_file(graph* grafo_valutazioni, tipo_inf* ArrayNodes, int dim);
 void stampa(graph* grafo_valutazioni, tipo_inf* arrayNodes);
+float media_utente(char* account, graph g, tipo_inf* arrayNodes, int dim);
 
 int main(){
     int dim = 0;
@@ -18,11 +20,31 @@ int main(){
     stampa(&grafo_valutazioni, arrayNodes);
 
 
+
+    //punto 2a
+    printf("\n-------------");
+    char* account = string_input("\nInserire account: ", 20);
+    printf("\nValutazione media di %s: %f", account, media_utente(account, grafo_valutazioni, arrayNodes, dim));
+
+
     //libero la memoria
     free(arrayNodes);
 
     printf("\n\n");
     return 0;
+}
+
+char* string_input(char* msg, int max_length){
+    printf("%s", msg); 
+    char* buffer = malloc(max_length * sizeof(char));
+    if(!buffer){printf("\n\nMalloc failed"); exit(EXIT_FAILURE);} 
+
+    while(fgets(buffer, max_length, stdin) == NULL){
+        printf("\nInput fallito\n");
+    }
+
+    buffer[strcspn(buffer, "\r\n")] = '\0';
+    return buffer;
 }
 
 /**
@@ -81,6 +103,13 @@ tipo_inf* creaNodi(int* n){
 
 }
 
+/**
+ * @brief Funzione per il caricamento di un grafo dal file valutazioni.txt
+ * 
+ * @param grafo_valutazioni 
+ * @param ArrayNodes 
+ * @param dim 
+ */
 void load_graph_from_file(graph* grafo_valutazioni, tipo_inf* ArrayNodes, int dim){
     char* filename = "valutazioni.txt";
     char* mode = "r";
@@ -107,6 +136,9 @@ void load_graph_from_file(graph* grafo_valutazioni, tipo_inf* ArrayNodes, int di
         int id_utente = trovaUtenteProdotto(ArrayNodes, dim, descrizione_utente);
         int id_prodotto = trovaUtenteProdotto(ArrayNodes, dim, descrizione_prodotto); 
 
+        if(id_prodotto == -1 || id_utente == -1)
+            {printf("\nDATI NON VALIDI"); exit(EXIT_FAILURE);}
+
         //printf("\nAGGIUNGO L'ARCO %s [%d] --> %s [%d], di peso %d", descrizione_utente, id_utente, descrizione_prodotto, id_prodotto, stelle);
         add_arc(&grafo_tmp, id_utente+1, id_prodotto+1, stelle);
     }
@@ -116,6 +148,12 @@ void load_graph_from_file(graph* grafo_valutazioni, tipo_inf* ArrayNodes, int di
 
 }
 
+/**
+ * @brief Procedura di stampa delle valutazioni
+ * 
+ * @param grafo_valutazioni 
+ * @param arrayNodes 
+ */
 void stampa(graph* grafo_valutazioni, tipo_inf* arrayNodes){
     for(int i=0; i<get_dim(*grafo_valutazioni); i++){
         int id_nodo = i+1; //1-based
@@ -134,7 +172,27 @@ void stampa(graph* grafo_valutazioni, tipo_inf* arrayNodes){
 
 }
 
+/**
+ * @brief Funzione che calcola la media delle valutazioni dell'utente con la descrizione fornita per parametro
+ * 
+ */
+float media_utente(char* account, graph g, tipo_inf* arrayNodes, int dim){
+    //cerco l'id dell'utente
+    int pos = trovaUtenteProdotto(arrayNodes, dim, account);
+    if(pos == -1){printf("\nDATI NON VALIDI"); exit(EXIT_FAILURE);}
+    //acquisisco la lista di adiacenza del nodo, per trovare tutti i prodotti che ha valutato
+    adj_list cursor = get_adjlist(g, pos+1);
+    float somma = 0.0F; 
+    int totValutazioni = 0;
 
+    while(cursor != NULL){
+        somma += cursor->weight;
+        totValutazioni++;
+        cursor = cursor->next;
+    }
+
+    return somma / (float) totValutazioni;
+}
 
 
 
