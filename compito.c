@@ -1,0 +1,141 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include "grafo.h"
+#include "tipo.h"
+
+//prototipi 
+tipo_inf* creaNodi(int* n);
+void load_graph_from_file(graph* grafo_valutazioni, tipo_inf* ArrayNodes, int dim);
+void stampa(graph* grafo_valutazioni, tipo_inf* arrayNodes);
+
+int main(){
+    int dim = 0;
+    tipo_inf* arrayNodes = creaNodi(&dim);
+    graph grafo_valutazioni; 
+
+    load_graph_from_file(&grafo_valutazioni, arrayNodes, dim);
+    stampa(&grafo_valutazioni, arrayNodes);
+
+
+    //libero la memoria
+    free(arrayNodes);
+
+    printf("\n\n");
+    return 0;
+}
+
+/**
+ * @brief Funzione che genera e restituisce un vettore dinamico dei nodi contenente la descrizione
+ * 
+ * @param n 
+ * @return tipo_inf* 
+ */
+tipo_inf* creaNodi(int* n){
+    char* filename = "nodi.txt";
+    char* mode = "r";
+
+    FILE* fp_nodi = fopen(filename, mode); 
+    if(fp_nodi == NULL){printf("\nERRORE"); exit(EXIT_FAILURE);}
+
+    //la prima riga indica il numero totale di nodi
+    char buffer[100];
+    int totNodi = 0; 
+    if(fgets(buffer, sizeof buffer, fp_nodi) == NULL){printf("\nERRORE NELLA LETTURA"); exit(EXIT_FAILURE);}
+    buffer[strcspn(buffer, "\r\n")] = '\0';
+    if(sscanf(buffer, "%d", &totNodi) != 1){printf("\nRIGA NON VALIDA"); exit(EXIT_FAILURE);}
+
+    //costruisco l'array dinamico
+    tipo_inf* arrayNodes = malloc(totNodi * sizeof(tipo_inf));
+    if(!arrayNodes){printf("\nMALLOC FAILED"); exit(EXIT_FAILURE);}
+
+
+    //dalla seconda riga leggo solo i nodi
+    for(int i=1; i<=totNodi; i++){
+        tipo_inf tmp;
+        int index = i-1; 
+        //printf("\nLETTURA NODO %d", i);
+
+        //per ogni nodo leggo 2 righe
+        //prima riga nodo
+        if(fgets(buffer, sizeof buffer, fp_nodi) == NULL){printf("\nERRORE NELLA LETTURA"); exit(EXIT_FAILURE);}
+        buffer[strcspn(buffer, "\r\n")] = '\0';
+        strcpy(tmp.descrizione, buffer); 
+
+        //seconda riga nodo
+        if(fgets(buffer, sizeof buffer, fp_nodi) == NULL){printf("\nERRORE NELLA LETTURA"); exit(EXIT_FAILURE);}
+        buffer[strcspn(buffer, "\r\n")] = '\0';
+        tmp.tipo = buffer[0]; 
+
+        //una volta letto il nodo, lo inserisco nell'array
+        //printf("\nNodo letto: %s %c", tmp.descrizione, tmp.tipo);
+        arrayNodes[index] = tmp;
+
+    }
+
+    if(fclose(fp_nodi) == EOF){printf("\nERRORE"); exit(EXIT_FAILURE);}
+
+    //ritorno i valori
+    *n = totNodi;
+    return arrayNodes;
+
+}
+
+void load_graph_from_file(graph* grafo_valutazioni, tipo_inf* ArrayNodes, int dim){
+    char* filename = "valutazioni.txt";
+    char* mode = "r";
+
+    FILE* fp_valutazioni = fopen(filename, mode); 
+    if(fp_valutazioni == NULL){printf("\nERRORE"); exit(EXIT_FAILURE);}
+
+    //creo il nuovo grafo 
+    graph grafo_tmp = new_graph(dim);
+
+    //ogni nodo è su una riga 
+    char buffer[200]; 
+
+    //ogni riga è una valutazione diversa
+    while(fgets(buffer, sizeof buffer, fp_valutazioni) != NULL){
+        char descrizione_utente[20];
+        char descrizione_prodotto[20];
+        int stelle = 0;
+
+        buffer[strcspn(buffer, "\r\n")] = '\0';
+        if(sscanf(buffer, "%s %s %d", descrizione_utente, descrizione_prodotto, &stelle) != 3){printf("\nRIGA NON VALIDA"); exit(EXIT_FAILURE);}
+
+        //devo aggiungere un arco che va da utente --> prodotto, con peso = stelle (prodotto diventa vicino di utente)
+        int id_utente = trovaUtenteProdotto(ArrayNodes, dim, descrizione_utente);
+        int id_prodotto = trovaUtenteProdotto(ArrayNodes, dim, descrizione_prodotto); 
+
+        //printf("\nAGGIUNGO L'ARCO %s [%d] --> %s [%d], di peso %d", descrizione_utente, id_utente, descrizione_prodotto, id_prodotto, stelle);
+        add_arc(&grafo_tmp, id_utente+1, id_prodotto+1, stelle);
+    }
+
+    if(fclose(fp_valutazioni) == EOF){printf("\nERRORE"); exit(EXIT_FAILURE);}
+    *grafo_valutazioni = grafo_tmp; 
+
+}
+
+void stampa(graph* grafo_valutazioni, tipo_inf* arrayNodes){
+    for(int i=0; i<get_dim(*grafo_valutazioni); i++){
+        int id_nodo = i+1; //1-based
+        //printf("\nNodo di partenza: %s", arrayNodes[i].descrizione);
+
+        //scorro la lista del nodo con id id_nodo
+        adj_list cursor = get_adjlist(*grafo_valutazioni, id_nodo);
+        while(cursor != NULL){
+            printf("\n%s valuta %lf %s", arrayNodes[i].descrizione, cursor->weight, arrayNodes[cursor->node].descrizione);
+
+            cursor = cursor->next;
+        }
+
+
+    }
+
+}
+
+
+
+
+
+
