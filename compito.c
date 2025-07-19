@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdbool.h>
 #include "grafo.h"
 #include "tipo.h"
 
@@ -12,6 +13,7 @@ void load_graph_from_file(graph* grafo_valutazioni, tipo_inf* ArrayNodes, int di
 void stampa(graph* grafo_valutazioni, tipo_inf* arrayNodes);
 float media_utente(char* account, graph g, tipo_inf* arrayNodes, int dim);
 float media_prod(char* prod, graph g, tipo_inf* arrayNodes, int dim);
+void suggerisci(char* account, char* prod, graph g, tipo_inf* arrayNodes, int dim);
 
 int main(){
     int dim = 0;
@@ -33,6 +35,11 @@ int main(){
     printf("\n-------------");
     int id_prod = (int) int_input("\nInserire id prodotto: ", 1, dim);
     printf("\nLa media delle valutazioni del prodotto e' %f", media_prod(arrayNodes[id_prod-1].descrizione, grafo_valutazioni, arrayNodes, dim));
+
+
+    //punto 2b
+    printf("\n-------------");
+    suggerisci(string_input("\nInserire un account: ", 20), string_input("\nInserire un prodotto: ", 20), grafo_valutazioni, arrayNodes, dim);
 
     //libero la memoria
     free(arrayNodes);
@@ -254,7 +261,89 @@ float media_prod(char* prod, graph g, tipo_inf* arrayNodes, int dim){
 
     }
 
+    if(n_valutazioni == 0) return 0;
     return tot_valutazioni/(float) n_valutazioni;
 
 }
+
+/**
+ * @brief Funzione che mostra i suggerimenti ad un utente
+ * 
+ */
+
+void suggerisci(char* account, char* prod, graph g, tipo_inf* arrayNodes, int dim){
+    int id_utente = trovaUtenteProdotto(arrayNodes, dim, account);
+    int id_prodotto = trovaUtenteProdotto(arrayNodes, dim, prod);
+    if(id_utente == -1 || id_prodotto == -1){printf("\nDATI NON VALIDI"); exit(EXIT_FAILURE);}
+
+    //scorro il grafo per mostrare i suggerimenti per account
+    int soglia_stelle_minima = 3;
+    int valutazioneProd_byUser = 0;
+    //verifica con quanto l'utente id_utente ha recensito il prodotto prod
+    adj_list cursor_user = get_adjlist(g, id_utente+1);
+    bool finded = false;
+
+    while(cursor_user != NULL && !finded){
+        if(strcmp(arrayNodes[cursor_user->node].descrizione, prod) == 0){
+            valutazioneProd_byUser = cursor_user->weight;
+            finded = true;
+        }
+
+        cursor_user = cursor_user->next;
+    }
+
+    if(!finded){
+        printf("\n\nL'utente %s non ha valutato il prodotto %s", account, prod);
+        return;
+    }
+
+    bool* prod_to_advise = calloc(dim, sizeof(bool)); //indica se il prodotto deve essere suggerito
+
+    for(int index=0; index<get_dim(g); index++){
+        bool valutazioneProd = false; //indica se l'utente ha valutato prod come account
+        float valutazione_personale = 0.0f;
+
+        //per ogni utente verifico quando ha valutato prod
+        if(arrayNodes[index].tipo == 'U'){
+            adj_list cursor = get_adjlist(g, index+1);
+            while(cursor != NULL && !valutazioneProd){
+                //se l'utente ha valutato il prodotto...
+                if(strcmp(arrayNodes[cursor->node].descrizione, prod) == 0){
+                    valutazioneProd = true; 
+                    valutazione_personale = cursor->weight;
+                } 
+
+                cursor = cursor->next;
+            }
+
+            //se l'utente ha valutato il prodotto come l'untente 'account'...
+            if(valutazioneProd && valutazione_personale == valutazioneProd_byUser){
+                //scorro di nuovo la lista dei prodotti di index per vedere quali prodotti sono stati valutati per almeno soglia_stelle_minima
+                cursor = get_adjlist(g, index+1);
+                while(cursor != NULL){
+                    //se il prodotto ha una valutazione >= soglia_minima
+                    if(cursor->weight >= soglia_stelle_minima){
+                        //allora il prodotto deve essere suggerito
+                        prod_to_advise[cursor->node] = true;
+                    }
+
+                    cursor = cursor->next;
+                }
+            }
+
+            //else --> non considero le sue valutazioni
+        }
+
+        //else --> per quell'utente non faccio nulla
+    }
+
+    //qui, stampo tutti i suggerimenti
+    printf("\nLista prodotti suggeriti per %s: ", account);
+    for(int i=0; i<dim; i++){
+        if(i != id_prodotto && prod_to_advise[i] == true) //escludo il prodotto passato come parametro
+            printf("\n\t- %s", arrayNodes[i].descrizione);
+    }
+
+}
+
 
