@@ -224,6 +224,7 @@ float media_utente(char* account, graph g, tipo_inf* arrayNodes, int dim){
         cursor = cursor->next;
     }
 
+    if(totValutazioni == 0) return 0;
     return somma / (float) totValutazioni;
 }
 
